@@ -34,3 +34,26 @@
 // - `CHARYBDIS_AUTO_POINTER_LAYER_TRIGGER_THRESHOLD`
 // #define CHARYBDIS_AUTO_POINTER_LAYER_TRIGGER_ENABLE
 #endif // POINTING_DEVICE_ENABLE
+
+#pragma once
+
+/* --- Tap / Hold 判定まわり --- */
+#define TAPPING_TERM 75                 // Tap/Hold の閾値(ms)
+#define PERMISSIVE_HOLD                 // 先に別キーが押されたら Hold を優先
+#define HOLD_ON_OTHER_KEY_PRESS         // MT押下中に次キーで即Hold確定
+/* #define RETRO_TAPPING */             // OFF（救済Tapなし）
+
+/* --- クイックタップ --- */
+#define QUICK_TAP_TERM 65               // 超短タップは即Tap確定(ms)
+
+/* --- tap_code 系 --- */
+#define TAP_CODE_DELAY 15               // 押下-離上の間隔(ms)
+
+/* --- Shift(MT) の取りこぼし対策 --- */
+#define TAP_HOLD_CAPS_DELAY 15          // Shift-MTで大文字化に猶予(ms)
+
+/* --- Tapping Toggle (TT) --- */
+#define TAPPING_TOGGLE 0                // 無効化（0）
+/* #define CHORDAL_HOLD */              // OFF（複数MT同時でも特別扱いなし）
+/* Flow Tap: 0（デフォルト） -> 追加定義不要 */
+
