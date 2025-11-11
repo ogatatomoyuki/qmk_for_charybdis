@@ -1,59 +1,34 @@
-/**
- * Copyright 2021 Charly Delay <charly@codesink.dev> (@0xcharly)
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 #pragma once
 
-#ifdef VIA_ENABLE
-/* VIA configuration. */
-#    define DYNAMIC_KEYMAP_LAYER_COUNT 7
-#endif // VIA_ENABLE
+/* ===== Charybdis向け Tap/Hold 調整（タップ寄りバランス） =====
+   目的: Atreusでは快適だった超短TTを緩め、Tap取りこぼしを解消
+*/
 
-#ifndef __arm__
-/* Disable unused features. */
-#    define NO_ACTION_ONESHOT
-#endif // __arm__
+/* 基本のTap/Hold境界 */
+#define TAPPING_TERM 165              // 75ms→大幅延長：Tap判定の余裕を作る
 
-/* Charybdis-specific features. */
+/* Hold寄り/ショートカット安定化 */
+#define PERMISSIVE_HOLD               // 先に別キーでHold寄り（ローリング入力の安定）
+#define HOLD_ON_OTHER_KEY_PRESS       // 次キーで即Hold確定（ショトカ強め・必要なら外してTap寄りへ）
 
-#ifdef POINTING_DEVICE_ENABLE
-// Automatically enable the pointer layer when moving the trackball.  See also:
-// - `CHARYBDIS_AUTO_POINTER_LAYER_TRIGGER_TIMEOUT_MS`
-// - `CHARYBDIS_AUTO_POINTER_LAYER_TRIGGER_THRESHOLD`
-// #define CHARYBDIS_AUTO_POINTER_LAYER_TRIGGER_ENABLE
-#endif // POINTING_DEVICE_ENABLE
+/* Tap救済（離しが遅れてもTapにする） */
+#define RETRO_TAPPING                 // Atreus比で“遅離し”が増える想定→救済ON
 
-#pragma once
+/* 連打・超短タップの扱い */
+#define QUICK_TAP_TERM 100            // 65→100ms：素早い単打は確実にTapへ
+#define TAP_CODE_DELAY 10             // tap_codeの押下-離上間隔
 
-/* --- Tap / Hold 判定まわり --- */
-#define TAPPING_TERM 75                 // Tap/Hold の閾値(ms)
-#define PERMISSIVE_HOLD                 // 先に別キーが押されたら Hold を優先
-#define HOLD_ON_OTHER_KEY_PRESS         // MT押下中に次キーで即Hold確定
-/* #define RETRO_TAPPING */             // OFF（救済Tapなし）
+/* Shift(MT)の取りこぼし対策 */
+#define TAP_HOLD_CAPS_DELAY 60        // 15→60ms：大文字・記号抜けを抑制
 
-/* --- クイックタップ --- */
-#define QUICK_TAP_TERM 65               // 超短タップは即Tap確定(ms)
+/* 複数Mod同時（Ctrl+Shift+Z等）の安定化 */
+#define CHORDAL_HOLD                  // 複合修飾でHold優先に
 
-/* --- tap_code 系 --- */
-#define TAP_CODE_DELAY 15               // 押下-離上の間隔(ms)
+/* 不使用設定（明示） */
+#define TAPPING_TOGGLE 0              // 連打でトグル無効
+/* Flow Tap = 0（定義不要） */
 
-/* --- Shift(MT) の取りこぼし対策 --- */
-#define TAP_HOLD_CAPS_DELAY 15          // Shift-MTで大文字化に猶予(ms)
-
-/* --- Tapping Toggle (TT) --- */
-#define TAPPING_TOGGLE 0                // 無効化（0）
-/* #define CHORDAL_HOLD */              // OFF（複数MT同時でも特別扱いなし）
-/* Flow Tap: 0（デフォルト） -> 追加定義不要 */
-
+/* ─ ヒント ─
+   ・まだTapが出にくければ: TAPPING_TERMを +10〜20ms, あるいは HOLD_ON_OTHER_KEY_PRESS をコメントアウト
+   ・ショートカットが落ちるなら: QUICK_TAP_TERM を -5〜10ms, または TAPPING_TERM を +10ms
+*/
