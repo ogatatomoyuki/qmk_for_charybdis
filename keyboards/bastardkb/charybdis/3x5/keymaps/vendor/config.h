@@ -5,17 +5,17 @@
 */
 
 /* 基本のTap/Hold境界 */
-#define TAPPING_TERM 165              // 75ms→大幅延長：Tap判定の余裕を作る
+#define TAPPING_TERM 100              // 75ms→大幅延長：Tap判定の余裕を作る
 
 /* Hold寄り/ショートカット安定化 */
 #define PERMISSIVE_HOLD               // 先に別キーでHold寄り（ローリング入力の安定）
 #define HOLD_ON_OTHER_KEY_PRESS       // 次キーで即Hold確定（ショトカ強め・必要なら外してTap寄りへ）
 
 /* Tap救済（離しが遅れてもTapにする） */
-#define RETRO_TAPPING                 // Atreus比で“遅離し”が増える想定→救済ON
+//#define RETRO_TAPPING                 // Atreus比で“遅離し”が増える想定→救済ON
 
 /* 連打・超短タップの扱い */
-#define QUICK_TAP_TERM 100            // 65→100ms：素早い単打は確実にTapへ
+#define QUICK_TAP_TERM 80            // 65→100ms：素早い単打は確実にTapへ
 #define TAP_CODE_DELAY 10             // tap_codeの押下-離上間隔
 
 /* Shift(MT)の取りこぼし対策 */
