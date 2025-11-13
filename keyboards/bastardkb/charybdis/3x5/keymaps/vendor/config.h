@@ -33,3 +33,8 @@
    ・ショートカットが落ちるなら: QUICK_TAP_TERM を -5〜10ms, または TAPPING_TERM を +10ms
 */
 
+/* per-key 調整を有効化（挙動は keymap.c 側で制御） */
+#define TAPPING_TERM_PER_KEY
+#define PERMISSIVE_HOLD_PER_KEY
+#define HOLD_ON_OTHER_KEY_PRESS_PER_KEY
+#define IGNORE_MOD_TAP_INTERRUPT_PER_KEY
