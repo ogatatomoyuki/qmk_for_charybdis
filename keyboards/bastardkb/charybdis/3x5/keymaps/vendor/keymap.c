@@ -77,21 +77,12 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 ),
 };
 
-// --- あなたのマクロ定義に合わせて（未定義ならここで定義） ---
-#ifndef LCTL_Z
-#    define LCTL_Z LCTL_T(KC_Z)   // Tap=Z / Hold=Ctrl
-#endif
-#ifndef LSFT_X
-#    define LSFT_X LSFT_T(KC_X)   // Tap=X / Hold=Shift
-#endif
-#ifndef LALT_C
-#    define LALT_C LALT_T(KC_C)   // Tap=C / Hold=Alt
-#endif
 
-// ──────────────────────────────────────────────────────
-// Per-key hooks: Z / X / C の Mod-Tap を Tap優先にする
-// V は対象外（Tap優先にしない）
-// ──────────────────────────────────────────────────────
+
+// ───────────────────────────────────────────────
+// Per-key hooks: Z / X / C の Mod-Tap だけ Tap寄りにする
+// 他のキーは config.h のグローバル設定のまま
+// ───────────────────────────────────────────────
 
 #ifndef LCTL_Z
 #    define LCTL_Z LCTL_T(KC_Z)   // Tap=Z / Hold=Ctrl
@@ -103,15 +94,15 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 #    define LALT_C LALT_T(KC_C)   // Tap=C / Hold=Alt
 #endif
 
-// ▼ Mod-Tap の Tap側 KC を抽出（GET_TAP_KC を使わない安全版）
+// Mod-Tap から Tap側のキーコードを取り出す（GET_TAP_KC を使わない安全版）
 static inline uint16_t tap_keycode_from_modtap(uint16_t keycode) {
     if ((keycode & QK_MOD_TAP) == QK_MOD_TAP) {
-        return keycode & 0xFF;   // 下位8bitが Tap 側
+        return keycode & 0xFF;   // 下位8bitが Tap
     }
     return KC_NO;
 }
 
-// ▼ Z / X / C の Mod-Tap 判定（V は含めない）
+// Z / X / C の Mod-Tap 判定（V は含めない）
 static inline bool is_ZXC_modtap(uint16_t keycode) {
     if (keycode == LCTL_Z || keycode == LSFT_X || keycode == LALT_C) return true;
 
@@ -119,32 +110,49 @@ static inline bool is_ZXC_modtap(uint16_t keycode) {
     return (tapkc == KC_Z || tapkc == KC_X || tapkc == KC_C);
 }
 
-/* 1) Z/X/C だけ TAPPING_TERM を長め（Tapしやすく） */
+/* 1) Z/X/C だけ TAPPING_TERM を長めにして Tap を優先
+   - グローバルは 100ms のまま
+   - Z/X/C だけ 200ms（高速タイピングでも Tap が抜けにくい）
+*/
 uint16_t get_tapping_term(uint16_t keycode, keyrecord_t *record) {
-    if (is_ZXC_modtap(keycode)) return 185;  // 175〜195で微調整可
-    return TAPPING_TERM;
+    if (is_ZXC_modtap(keycode)) {
+        return 200;   // まだ抜けるなら 210〜220 に上げてOK
+    }
+    return TAPPING_TERM;  // 他のキーは config.h の 100ms
 }
 
-/* 2) Z/X/C だけ 次キーで即Hold確定を無効化（Tap維持） */
+/* 2) Z/X/C だけ “次キー押したら即Hold確定” を無効化（Tap判定を時間ベースに）
+   - 他のキーは今まで通り HOLD_ON_OTHER_KEY_PRESS=ON の挙動を維持
+*/
 bool get_hold_on_other_key_press(uint16_t keycode, keyrecord_t *record) {
-    if (is_ZXC_modtap(keycode)) return false;
-    return true;
+    if (is_ZXC_modtap(keycode)) {
+        return false;  // Z/X/C: 次キー押しても即Holdにしない（Tapを殺さない）
+    }
+    return true;       // それ以外: これまで通り「次キーでHold」
 }
 
-/* 3) Z/X/C だけ Permissive Hold を無効化（Hold寄りを弱める） */
+/* 3) Z/X/C だけ Permissive Hold を無効化（前後キーのタイミングでHoldに傾かない）
+   - 他のキーは PERMISSIVE_HOLD=ON の挙動を維持
+*/
 bool get_permissive_hold(uint16_t keycode, keyrecord_t *record) {
-    if (is_ZXC_modtap(keycode)) return false;
-    return true;
+    if (is_ZXC_modtap(keycode)) {
+        return false;  // Z/X/C: ローリングでHold判定を優先しない
+    }
+    return true;       // それ以外: これまで通り Permissive Hold 有効
 }
 
-/* 4) Z/X/C だけ 割り込み（途中で⌘等を押す）でもTapを維持 */
+/* 4) Z/X/C だけ 割り込みでも Tap を維持
+   - 途中で ⌘ / Ctrl などを押しても Z/X/C の Tap 判定が崩れにくくなる
+   - 他のキーはグローバル（IGNORE_MOD_TAP_INTERRUPT 未定義）＝OFFのまま
+*/
 bool get_ignore_mod_tap_interrupt(uint16_t keycode, keyrecord_t *record) {
-    if (is_ZXC_modtap(keycode)) return true;
-    return false;
+    if (is_ZXC_modtap(keycode)) {
+        return true;   // Z/X/C: 中断されてもTapを優先
+    }
+    return false;      // 他のキー: これまで通り
 }
 
-/* 5) Z/X/C だけ TAPPING_FORCE_HOLD を無効化（他キー後離してもTap） */
-bool get_tapping_force_hold(uint16_t keycode, keyrecord_t *record) {
-    if (is_ZXC_modtap(keycode)) return false;
-    return true;
-}
+/* TAPPING_FORCE_HOLD は定義しない
+   → グローバル（未定義=OFF）のままにしておくことで、
+      Z/X/C も他キーも「時間内ならTapに落とせる」挙動を維持
+*/
