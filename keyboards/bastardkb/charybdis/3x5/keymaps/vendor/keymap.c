@@ -78,23 +78,35 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 };
 
 
-
 // ───────────────────────────────────────────────
-// Per-key hooks: Z / X / C の Mod-Tap だけ Tap寄りにする
-// 他のキーは config.h のグローバル設定のまま
+// Per-key hooks
+// - Z / X / C の Mod-Tap → Tap 寄り（今まで通り）
+// - すべての Layer-Tap (LT) → Hold を強めてレイヤーを素早く・確実に上げる
 // ───────────────────────────────────────────────
 
+// 既に上の方で定義しているはずですが、念のため保険
 #ifndef LCTL_Z
-#    define LCTL_Z LCTL_T(KC_Z)   // Tap=Z / Hold=Ctrl
+#    define LCTL_Z LCTL_T(KC_Z)
 #endif
 #ifndef LSFT_X
-#    define LSFT_X LSFT_T(KC_X)   // Tap=X / Hold=Shift
+#    define LSFT_X LSFT_T(KC_X)
 #endif
 #ifndef LALT_C
-#    define LALT_C LALT_T(KC_C)   // Tap=C / Hold=Alt
+#    define LALT_C LALT_T(KC_C)
 #endif
 
-// Mod-Tap から Tap側のキーコードを取り出す（GET_TAP_KC を使わない安全版）
+// 親指の Layer-Tap キー（あなたのレイアウト）
+#ifndef LT1_LNG2
+#    define LT1_LNG2 LT(_NAV, KC_LNG2)
+#endif
+#ifndef LT2_LNG1
+#    define LT2_LNG1 LT(_MOUSE, KC_LNG1)
+#endif
+#ifndef LT3_BSPC
+#    define LT3_BSPC LT(_NUMSYM, KC_BSPC)
+#endif
+
+// Mod-Tap から Tap側のキーコードを取り出す（GET_TAP_KCを使わない安全版）
 static inline uint16_t tap_keycode_from_modtap(uint16_t keycode) {
     if ((keycode & QK_MOD_TAP) == QK_MOD_TAP) {
         return keycode & 0xFF;   // 下位8bitが Tap
@@ -102,57 +114,74 @@ static inline uint16_t tap_keycode_from_modtap(uint16_t keycode) {
     return KC_NO;
 }
 
-// Z / X / C の Mod-Tap 判定（V は含めない）
+// Z / X / C の Mod-Tap 判定
 static inline bool is_ZXC_modtap(uint16_t keycode) {
-    if (keycode == LCTL_Z || keycode == LSFT_X || keycode == LALT_C) return true;
-
+    if (keycode == LCTL_Z || keycode == LSFT_X || keycode == LALT_C) {
+        return true;
+    }
     uint16_t tapkc = tap_keycode_from_modtap(keycode);
     return (tapkc == KC_Z || tapkc == KC_X || tapkc == KC_C);
 }
 
-/* 1) Z/X/C だけ TAPPING_TERM を長めにして Tap を優先
-   - グローバルは 100ms のまま
-   - Z/X/C だけ 200ms（高速タイピングでも Tap が抜けにくい）
-*/
+// すべての Layer-Tap 判定（親指LT + それ以外のLTも含める）
+static inline bool is_layer_tap_key(uint16_t keycode) {
+    if (keycode == LT1_LNG2 || keycode == LT2_LNG1 || keycode == LT3_BSPC) {
+        return true;
+    }
+    // 一般的な LT() マクロ（QK_LAYER_TAP）も拾う
+    return ((keycode & QK_LAYER_TAP) == QK_LAYER_TAP);
+}
+
+/* 1) TAPPING_TERM: Z/X/C →長め（Tap優先）、Layer-Tap →短め（Hold優先） */
 uint16_t get_tapping_term(uint16_t keycode, keyrecord_t *record) {
     if (is_ZXC_modtap(keycode)) {
-        return 200;   // まだ抜けるなら 210〜220 に上げてOK
+        return 220;        // 既存設定：Tap落ち防止（必要なら今使っている値に合わせてOK）
     }
-    return TAPPING_TERM;  // 他のキーは config.h の 100ms
+    if (is_layer_tap_key(keycode)) {
+        return 120;        // Layer-Tap は素早く Hold 判定にする
+    }
+    return TAPPING_TERM;   // その他はグローバル設定
 }
 
-/* 2) Z/X/C だけ “次キー押したら即Hold確定” を無効化（Tap判定を時間ベースに）
-   - 他のキーは今まで通り HOLD_ON_OTHER_KEY_PRESS=ON の挙動を維持
-*/
+/* 2) HOLD_ON_OTHER_KEY_PRESS: Layer-Tap だけ「次キーで即Hold確定」にする */
 bool get_hold_on_other_key_press(uint16_t keycode, keyrecord_t *record) {
     if (is_ZXC_modtap(keycode)) {
-        return false;  // Z/X/C: 次キー押しても即Holdにしない（Tapを殺さない）
+        // Z/X/Cは今まで通り Tap 寄りの挙動を維持したければ false
+        return false;
     }
-    return true;       // それ以外: これまで通り「次キーでHold」
+    if (is_layer_tap_key(keycode)) {
+        // Layer-Tap: 次のキーを押した瞬間に Hold 確定 → レイヤーがすぐ上がる
+        return true;
+    }
+    return true;   // その他はグローバルの挙動（おそらく true 相当）
 }
 
-/* 3) Z/X/C だけ Permissive Hold を無効化（前後キーのタイミングでHoldに傾かない）
-   - 他のキーは PERMISSIVE_HOLD=ON の挙動を維持
-*/
+/* 3) PERMISSIVE_HOLD: Layer-Tap だけ Hold 優先 */
 bool get_permissive_hold(uint16_t keycode, keyrecord_t *record) {
     if (is_ZXC_modtap(keycode)) {
-        return false;  // Z/X/C: ローリングでHold判定を優先しない
+        // Z/X/C は Tap優先なので false
+        return false;
     }
-    return true;       // それ以外: これまで通り Permissive Hold 有効
+    if (is_layer_tap_key(keycode)) {
+        // Layer-Tap は Hold 優先 → ローリングでもレイヤーが上がりやすい
+        return true;
+    }
+    return true;   // その他はグローバルの挙動
 }
 
-/* 4) Z/X/C だけ 割り込みでも Tap を維持
-   - 途中で ⌘ / Ctrl などを押しても Z/X/C の Tap 判定が崩れにくくなる
-   - 他のキーはグローバル（IGNORE_MOD_TAP_INTERRUPT 未定義）＝OFFのまま
-*/
-bool get_ignore_mod_tap_interrupt(uint16_t keycode, keyrecord_t *record) {
+/* 4) TAPPING_FORCE_HOLD: Layer-Tap だけ ON
+   → 他のキーを巻き込んだら、Tap(KC_LANG1/2, BSPC)には戻らないようにする */
+bool get_tapping_force_hold(uint16_t keycode, keyrecord_t *record) {
     if (is_ZXC_modtap(keycode)) {
-        return true;   // Z/X/C: 中断されてもTapを優先
+        // Z/X/C は他キーを巻き込んでも Tap に落としたいので false
+        return false;
     }
-    return false;      // 他のキー: これまで通り
+    if (is_layer_tap_key(keycode)) {
+        // Layer-Tap は一度コンボに使われたら、確実にレイヤーキーとして動いてほしい
+        return true;
+    }
+    return false;  // その他はグローバル（未定義=OFF）で問題ない
 }
 
-/* TAPPING_FORCE_HOLD は定義しない
-   → グローバル（未定義=OFF）のままにしておくことで、
-      Z/X/C も他キーも「時間内ならTapに落とせる」挙動を維持
-*/
+
+
